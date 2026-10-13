@@ -9,7 +9,7 @@ let io = null;
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: env.FRONTEND_ORIGIN || "*",
+      origin: env.FRONTEND_ORIGINS && env.FRONTEND_ORIGINS.length > 0 ? env.FRONTEND_ORIGINS : "*",
       credentials: true,
     },
   });
@@ -57,9 +57,13 @@ export const initSocket = (httpServer) => {
     socket.join(`user:${userId}`);
 
     // Join user room event
+    // Users may only (re)join their own room; joining another user's room would
+    // leak that user's private notifications.
     socket.on("join_user", (data) => {
       const targetId = data?.userId || userId;
-      socket.join(`user:${targetId}`);
+      if (String(targetId) === userId) {
+        socket.join(`user:${userId}`);
+      }
     });
 
     // Join conversation room

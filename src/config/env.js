@@ -14,6 +14,13 @@ if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
   console.warn("[WARN] JWT_SECRET should ideally be at least 32 characters long for production security.");
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction && !process.env.JWT_SECRET) {
+  // The development fallback secret is public; never sign production tokens with it.
+  throw new Error("JWT_SECRET must be set when NODE_ENV=production");
+}
+
 export const env = {
   PORT: process.env.PORT || 3001,
   MONGODB_URI: process.env.MONGODB_URI,
@@ -34,7 +41,10 @@ export const env = {
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || "",
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || "",
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET || "gloxad-media-bucket",
-  PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY || "sk_test_mock_paystack_secret_key_12345",
+  // No mock fallback in production: an empty key makes webhook/verification fail closed.
+  PAYSTACK_SECRET_KEY:
+    process.env.PAYSTACK_SECRET_KEY ||
+    (isProduction ? "" : "sk_test_mock_paystack_secret_key_12345"),
 };
 
 export default env;

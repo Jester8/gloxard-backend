@@ -320,8 +320,13 @@ export const updateCourseDraft = async (req, res, next) => {
       updateFields.slug = slug;
     }
 
-    delete updateFields.status;
-    delete updateFields.instructor;
+    // Server-managed fields must never be set from the request body
+    for (const field of [
+      "_id", "status", "instructor", "enrolledCount", "rating", "ratingsCount",
+      "rejectionReason", "reviewedAt", "reviewedBy", "createdAt", "updatedAt",
+    ]) {
+      delete updateFields[field];
+    }
 
     const updatedCourse = await Course.findByIdAndUpdate(id, { $set: updateFields }, { returnDocument: "after", runValidators: true });
 

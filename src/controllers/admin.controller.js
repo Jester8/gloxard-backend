@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { emitNotification } from '../socket/socket.handler.js';
 import User from '../models/User.model.js';
 import Course from '../models/Course.model.js';
 import Appeal from '../models/Appeal.model.js';
@@ -534,7 +535,8 @@ export const broadcastNotificationController = async (req, res, next) => {
         type: 'system_broadcast'
       }));
 
-      await Notification.insertMany(notificationDocs);
+      const created = await Notification.insertMany(notificationDocs);
+      created.forEach((n) => emitNotification(n.recipient.toString(), n.toJSON()));
     }
 
     return res.status(201).json({

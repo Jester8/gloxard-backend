@@ -13,7 +13,8 @@ export const verifyPaystackTransaction = async (reference) => {
   }
 
   // Simulated test reference fallback for unit/integration testing
-  if (reference && reference.startsWith('PAYSTACK_TEST_REF_')) {
+  // Never honoured in production: it would let anyone unlock paid courses for free.
+  if (process.env.NODE_ENV !== 'production' && reference && reference.startsWith('PAYSTACK_TEST_REF_')) {
     return {
       status: 'success',
       amount: 1500000, // 15,000 NGN in Kobo

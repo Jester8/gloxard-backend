@@ -4,6 +4,7 @@ import { Enrollment } from '../models/Enrollment.model.js';
 import { Course } from '../models/Course.model.js';
 import { User } from '../models/User.model.js';
 import { Notification } from '../models/Notification.model.js';
+import { emitNotification } from '../socket/socket.handler.js';
 
 /**
  * Handles Paystack webhooks (e.g. charge.success) idempotently
@@ -107,7 +108,7 @@ export const handlePaystackWebhook = async (req, res, next) => {
     }
 
     // Create student notification
-    await Notification.create({
+    const enrollmentNotification = await Notification.create({
       recipient: student._id,
       title: 'Enrollment Confirmed',
       message: `You have successfully enrolled in ${course.title}.`,
@@ -115,6 +116,7 @@ export const handlePaystackWebhook = async (req, res, next) => {
       read: false,
       link: `/courses/${course.slug}`,
     });
+    emitNotification(student._id.toString(), enrollmentNotification.toJSON());
 
     return res.status(200).json({
       status: 'success',
