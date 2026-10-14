@@ -16,6 +16,7 @@ import { Notification } from './models/Notification.model.js';
 import { Appeal } from './models/Appeal.model.js';
 import { Review } from './models/Review.model.js';
 import { PlatformSettings } from './models/PlatformSettings.model.js';
+import { seedLms } from './seedLms.js';
 
 async function seedDatabase() {
   console.log('\x1b[36m==================================================\x1b[0m');
@@ -553,6 +554,7 @@ async function seedDatabase() {
     console.log('\x1b[32m✔ Seed data generated & inserted successfully!\x1b[0m\n');
     console.log('+--------------------+-------+');
     console.log('| Entity             | Count |');
+    await seedLms({ admin, jane, alice, bob });
     console.log('+--------------------+-------+');
     console.log(`| Users              | ${insertedUsers.length.toString().padEnd(5)} |`);
     console.log(`| Categories         | ${insertedCategories.length.toString().padEnd(5)} |`);
@@ -564,6 +566,7 @@ async function seedDatabase() {
     console.log(`| Notifications      | ${insertedNotifications.length.toString().padEnd(5)} |`);
     console.log(`| Reviews            | ${insertedReviews.length.toString().padEnd(5)} |`);
     console.log(`| Platform Settings  | 1     |`);
+    console.log(`| LMS demo data      | yes   |`);
     console.log('+--------------------+-------+\n');
 
     console.log('\x1b[32m[SEED SUCCESS] Database seeding completed cleanly!\x1b[0m');

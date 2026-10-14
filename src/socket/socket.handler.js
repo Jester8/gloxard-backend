@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import { verifyToken } from "../utils/jwt.js";
 import { User } from "../models/User.model.js";
 import { Conversation } from "../models/Conversation.model.js";
+import { Cohort, LiveSession } from "../models/Lms.model.js";
 import { env } from "../config/env.js";
 
 let io = null;
@@ -14,8 +15,8 @@ export const initSocket = (httpServer) => {
     },
   });
 
-  // Authentication Middleware
-  io.use(async (socket, next) => {
+  // Authentication Middleware (shared by the default namespace and /live)
+  const authenticate = async (socket, next) => {
     try {
       let token = socket.handshake.auth?.token || socket.handshake.query?.token;
       if (!token && socket.handshake.headers?.authorization) {
@@ -50,7 +51,10 @@ export const initSocket = (httpServer) => {
     } catch (err) {
       return next(new Error("Authentication error"));
     }
-  });
+  };
+  io.use(authenticate);
+
+  initLiveNamespace(io, authenticate);
 
   io.on("connection", (socket) => {
     const userId = socket.user._id;
@@ -124,6 +128,49 @@ export const initSocket = (httpServer) => {
   });
 
   return io;
+};
+
+let liveNamespace = null;
+
+// Live class realtime channel: clients join a session room only if they belong to its cohort.
+const initLiveNamespace = (server, authenticate) => {
+  liveNamespace = server.of("/live");
+  liveNamespace.use(authenticate);
+
+  liveNamespace.on("connection", (socket) => {
+    socket.on("join_session", async (data, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      try {
+        const sessionId = typeof data === "string" ? data : data?.sessionId;
+        const session = sessionId ? await LiveSession.findById(sessionId).select("cohort") : null;
+        if (!session) return reply({ ok: false, error: "Live session not found" });
+
+        const cohort = await Cohort.findById(session.cohort).select("students instructor");
+        const userId = socket.user._id;
+        const allowed =
+          socket.user.role === "admin" ||
+          cohort?.instructor?.toString() === userId ||
+          cohort?.students.some((id) => id.toString() === userId);
+        if (!allowed) return reply({ ok: false, error: "You are not a member of this class" });
+
+        socket.join(`live:${sessionId}`);
+        reply({ ok: true });
+      } catch (err) {
+        console.error("Socket join_session error:", err);
+        reply({ ok: false, error: "Could not join the session" });
+      }
+    });
+
+    socket.on("leave_session", (data) => {
+      const sessionId = typeof data === "string" ? data : data?.sessionId;
+      if (sessionId) socket.leave(`live:${sessionId}`);
+    });
+  });
+};
+
+/** Broadcast an event to everyone in a live session room (chat:new, poll:new, poll:update, hand:update, code:update, session:status). */
+export const emitLive = (sessionId, event, payload) => {
+  if (liveNamespace) liveNamespace.to(`live:${sessionId}`).emit(event, payload);
 };
 
 export const getIO = () => {

@@ -16,6 +16,7 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import learningRouter from "./routes/learning.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import lmsRoutes from "./routes/lms.routes.js";
 import { renderApiDocs } from "./controllers/docs.controller.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
@@ -45,15 +46,15 @@ app.use(
   })
 );
 
-// Body parser middleware with 16kb limit & rawBody preservation for signature verification
-app.use(
-  express.json({
-    limit: "16kb",
-    verify: (req, res, buf) => {
-      req.rawBody = buf;
-    },
-  })
-);
+// Body parser: 16kb everywhere, with a larger limit only for routes that carry student/instructor source code
+// (rawBody is preserved for webhook signature verification).
+const keepRawBody = (req, res, buf) => {
+  req.rawBody = buf;
+};
+const smallJson = express.json({ limit: "16kb", verify: keepRawBody });
+const codeJson = express.json({ limit: "1mb", verify: keepRawBody });
+const CODE_PATHS = [/^\/api\/lms\/code-labs(\/|$)/, /^\/api\/lms\/live-sessions\/[^/]+\/shared-code$/, /^\/api\/lms\/admin\/code-labs(\/|$)/];
+app.use((req, res, next) => (CODE_PATHS.some((pattern) => pattern.test(req.path)) ? codeJson : smallJson)(req, res, next));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 
 // Interactive HTML API Documentation Portal
@@ -106,6 +107,9 @@ app.use("/api/messages", messageRoutes);
 
 // Mount notification routes under /api/notifications
 app.use("/api/notifications", notificationRoutes);
+
+// Mount the trimester LMS under /api/lms
+app.use("/api/lms", lmsRoutes);
 
 // Mount category taxonomy & course catalog routes under /api
 app.use("/api", categoryRoutes);
