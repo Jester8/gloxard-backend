@@ -2,7 +2,9 @@ import crypto from "crypto";
 import { User } from "../models/User.model.js";
 import { Otp } from "../models/Otp.model.js";
 import { hashValue, compareValue } from "../utils/hash.js";
-import { signToken, verifyToken } from "../utils/jwt.js";
+import { signToken, verifyToken, verifyTokenWithGrace } from "../utils/jwt.js";
+
+const REFRESH_GRACE_SECONDS = 5 * 60;
 import {
   sendEmailVerificationOtp,
   sendPasswordResetOtp,
@@ -672,9 +674,10 @@ export const refreshTokenController = async (req, res, next) => {
       });
     }
 
+    // A token that expired within the last 5 minutes can still be refreshed.
     let decoded;
     try {
-      decoded = verifyToken(token);
+      decoded = verifyTokenWithGrace(token, REFRESH_GRACE_SECONDS);
     } catch (err) {
       return res.status(401).json({
         error: "Authentication token missing or malformed",

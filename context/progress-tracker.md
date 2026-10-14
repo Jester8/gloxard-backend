@@ -13,6 +13,19 @@
 
 ---
 
+## Phase 0 — Backend/Frontend Alignment (Oct 2026)
+
+- [x] **A1 Media storage**: presigned URLs now support `logos/`, `signatures/`, `documents/`, `submissions/`, `certificates/` and `categories/`. Private folders (`certifications`, `documents`, `submissions`, `certificates`) return `key` only (`fileUrl: null`), are namespaced by owner id, and are read via `GET /api/upload/signed-url?key=...` (owner or admin only). Bucket/CORS restore itself is an AWS-side task.
+- [x] **A2 API CORS**: `https://www.gloxadacademy.com`, `https://gloxadacademy.com` and `http://localhost:3000` are always allowed; `FRONTEND_ORIGIN` (comma-separated) adds staging/others.
+- [x] **A3 Category images**: `POST/PUT /api/admin/categories` accept, validate (http/https only) and persist `imageUrl`.
+- [x] **A4 Token refresh**: `POST /api/auth/refresh` accepts tokens expired up to 5 minutes and returns `{ token, user }`.
+- [x] **A7/D8 Health**: `GET /api/health/liveness` and `GET /api/health/readiness` (MongoDB + S3; 503 when a dependency is down). `/api/health` kept.
+- [x] **Validation errors**: Mongoose validation failures now return `{ error, fields: { "<dot.path>": "<message>" } }`; other errors keep the single-key `{ error }` shape.
+- [ ] **A5/D7**: OpenAPI 3.0 file at `/api/openapi.json` + Postman collection, and the staging environment with seeded `student`/`instructor`/`admin`/`institution_admin` accounts.
+- Verified by `npm run test:phase0` (33 checks).
+
+---
+
 ## Units Progress Summary
 
 - [x] **Audit & Scaffolding**: Initial repository analysis, rule violation fixes, and dependency installation.

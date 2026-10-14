@@ -1,8 +1,10 @@
 import express from "express";
+import mongoose from "mongoose";
 import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config/env.js";
+import { checkS3Connectivity } from "./utils/s3.js";
 import authRouter from "./routes/auth.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
@@ -57,9 +59,25 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 // Interactive HTML API Documentation Portal
 app.get("/", renderApiDocs);
 
-// Health check endpoint
+// Health checks. /api/health is kept for backward compatibility.
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", uptime: process.uptime() });
+});
+
+// Liveness: the process is up and answering (no dependency checks).
+app.get("/api/health/liveness", (req, res) => {
+  res.status(200).json({ status: "ok", uptime: process.uptime() });
+});
+
+// Readiness: dependencies are reachable (MongoDB, and S3 when configured).
+app.get("/api/health/readiness", async (req, res) => {
+  const mongo = mongoose.connection.readyState === 1 ? "ok" : "error";
+  const s3 = await checkS3Connectivity();
+  const ready = mongo === "ok" && s3 !== "error";
+  res.status(ready ? 200 : 503).json({
+    status: ready ? "ok" : "unavailable",
+    checks: { mongodb: mongo, s3 },
+  });
 });
 
 // Mount auth routes under /api/auth

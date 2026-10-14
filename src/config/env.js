@@ -14,6 +14,22 @@ if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
   console.warn("[WARN] JWT_SECRET should ideally be at least 32 characters long for production security.");
 }
 
+// Always-allowed platform origins; FRONTEND_ORIGIN (comma-separated) adds more
+// (staging, previews, local dev) on top of these.
+const PLATFORM_ORIGINS = [
+  "http://localhost:3000",
+  "https://www.gloxadacademy.com",
+  "https://gloxadacademy.com",
+];
+
+const parseOrigins = (value) =>
+  (value || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
+const FRONTEND_ORIGINS = [...new Set([...parseOrigins(process.env.FRONTEND_ORIGIN), ...PLATFORM_ORIGINS])];
+
 const isProduction = process.env.NODE_ENV === "production";
 
 if (isProduction && !process.env.JWT_SECRET) {
@@ -26,11 +42,8 @@ export const env = {
   MONGODB_URI: process.env.MONGODB_URI,
   JWT_SECRET: process.env.JWT_SECRET || "gloxad_academy_super_secret_jwt_key_2026_xyz123!",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
-  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
-  FRONTEND_ORIGINS: (process.env.FRONTEND_ORIGIN || "http://localhost:3000")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  FRONTEND_ORIGIN: FRONTEND_ORIGINS.join(","),
+  FRONTEND_ORIGINS,
   SMTP_HOST: process.env.SMTP_HOST || "",
   SMTP_PORT: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
   SMTP_USER: process.env.SMTP_USER || "",

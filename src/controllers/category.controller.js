@@ -1,6 +1,25 @@
 import mongoose from "mongoose";
 import { Category, slugify } from "../models/Category.model.js";
 
+// imageUrl must be empty (clears it) or an absolute http(s) URL.
+const normalizeImageUrl = (value) => {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (value === null || value === "") return { ok: true, value: "" };
+  if (typeof value !== "string") return { ok: false };
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") return { ok: false };
+    return { ok: true, value: url.toString() };
+  } catch {
+    return { ok: false };
+  }
+};
+
+const IMAGE_URL_ERROR = {
+  error: "imageUrl must be a valid http(s) URL",
+  fields: { imageUrl: "imageUrl must be a valid http(s) URL" },
+};
+
 const escapeRegex = (text) => {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
@@ -24,7 +43,10 @@ export const getCategories = async (req, res, next) => {
  */
 export const createCategory = async (req, res, next) => {
   try {
-    const { name, icon, order, subCategories } = req.body;
+    const { name, icon, imageUrl, order, subCategories } = req.body;
+
+    const image = normalizeImageUrl(imageUrl);
+    if (!image.ok) return res.status(400).json(IMAGE_URL_ERROR);
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "Category name is required" });
@@ -51,6 +73,7 @@ export const createCategory = async (req, res, next) => {
     const category = await Category.create({
       name: trimmedName,
       icon: icon || "",
+      imageUrl: image.value || "",
       order: order !== undefined ? Number(order) : 0,
       subCategories: formattedSubCategories
     });
@@ -84,7 +107,10 @@ export const updateCategory = async (req, res, next) => {
       return res.status(404).json({ error: "Category not found" });
     }
 
-    const { name, icon, order, subCategories } = req.body;
+    const { name, icon, imageUrl, order, subCategories } = req.body;
+
+    const image = normalizeImageUrl(imageUrl);
+    if (!image.ok) return res.status(400).json(IMAGE_URL_ERROR);
 
     if (name !== undefined) {
       if (typeof name !== "string" || !name.trim()) {
@@ -106,6 +132,10 @@ export const updateCategory = async (req, res, next) => {
 
     if (icon !== undefined) {
       category.icon = icon;
+    }
+
+    if (image.value !== undefined) {
+      category.imageUrl = image.value;
     }
 
     if (order !== undefined) {

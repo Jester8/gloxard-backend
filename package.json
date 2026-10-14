@@ -20,6 +20,7 @@
     "build": "node scripts/build.js",
     "seed": "node src/seed.js",
     "test:smoke": "node scripts/test-e2e-smoke.js",
+    "test:phase0": "node scripts/test-phase0.js",
     "test": "npm run test:smoke"
   },
   "dependencies": {
