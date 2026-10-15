@@ -37,7 +37,18 @@ Spec and endpoint reference: [`17-trimester-lms-api.md`](specs/17-trimester-lms-
 - [x] **Coding labs**: lab files and tests, submissions (stored as `unverified`; there is no server-side code sandbox yet).
 - [x] **Admin setup**: trimesters, weekly plans (item ids survive edits), cohorts and members, live sessions, labs.
 - [x] Verified by `npm run test:lms` (113 checks) against seeded demo data.
-- [ ] Not built yet: community forum, assignments and grading, server-side code runner, trimester payments/enrolment, OpenAPI file.
+- [ ] Not built yet: server-side code runner, trimester payments/enrolment, OpenAPI file.
+
+## LMS Learning API (Oct 2026)
+
+Spec and endpoint reference: [`18-lms-learning-api.md`](specs/18-lms-learning-api.md).
+
+- [x] **Models** (`LmsLearning.model.js`): Lesson, LessonProgress, LessonComment, LmsQuiz, QuizAttempt, Assignment, AssignmentSubmission, CommunityPost, CommunityReply, LmsCertificate.
+- [x] **Lessons**: objectives progress, up-next, threaded comments with likes. **Quizzes**: server-side grading, answers never leaked, 3 attempts, passing completes the linked week item.
+- [x] **Assignments**: due dates from the cohort calendar, submissions with owner-checked attachments, late flag, resubmit until graded, rubric grading with student notification.
+- [x] **Community** (channels, posts, replies, likes, pin, delete), **certificates** (auto-issued at 100%, manual admin issue), **instructor and admin overviews**, dashboard now uses real assignments.
+- [x] **Seeds**: demo data in `seedLms.js`; `npm run seed:lms` loads trimester content non-destructively; `src/seed.js` refuses to run in production.
+- [x] Verified by `npm run test:lms-learning` (208 checks); `test:lms` (117) stays green.
 
 ---
 
