@@ -17,6 +17,8 @@ import {
   flattenItems,
   isItemUnlocked,
 } from "../utils/lmsSchedule.js";
+import { issueIfComplete } from "../utils/lmsLearning.js";
+import { assignmentSummariesFor } from "./lmsAssignments.controller.js";
 
 const ASSIGNMENT_KINDS = ["problems", "submission"];
 const ALLOWED_ATTACHMENT_TYPES = ["image/svg+xml", "image/png", "image/jpeg", "application/pdf"];
@@ -91,6 +93,8 @@ export const getDashboardController = async (req, res, next) => {
     const weekNumber = currentWeekNumber(cohort, weeks.length, now);
     const weekItems = items.filter((item) => item.weekNumber === weekNumber);
     const weekDone = weekItems.filter((item) => item.done).length;
+    // Real assignments (with submissions) drive the assignment numbers; plans without any fall back to the problem/submission items
+    const assignmentRows = await assignmentSummariesFor(cohort, req.user._id, { now });
     const assignmentItems = items.filter((item) => ASSIGNMENT_KINDS.includes(item.kind));
 
     const endedSessions = await LiveSession.find({ cohort: cohort._id, status: "ended" }).select("_id");
@@ -105,17 +109,23 @@ export const getDashboardController = async (req, res, next) => {
 
     const upNextItem = items.find((item) => !item.done && isItemUnlocked(item.date, now)) || null;
 
-    // Upcoming = unfinished items from today on, mixed with scheduled live classes, soonest first
+    // Upcoming = unfinished items from today on, mixed with scheduled live classes, soonest first (4 entries).
+    // Assignments are due late in the day, so the next ones due within a week are always added on top.
     const todayKey = dayKey(now);
-    const upcoming = [
+    const base = [
       ...items
         .filter((item) => !item.done && dayKey(item.date) >= todayKey)
         .slice(0, 6)
-        .map((item) => ({ type: item.kind, title: item.label, detail: item.title, dueAt: item.date, itemId: item._id, labSlug: item.labSlug })),
+        .map((item) => ({ type: item.kind, title: item.label, detail: item.title, dueAt: item.date, itemId: item._id, labSlug: item.labSlug, lessonRef: item.lessonRef })),
       ...nextSessions.map((session) => ({ type: "live", title: session.title, detail: "Live class", dueAt: session.startsAt, sessionId: session._id })),
     ]
       .sort((a, b) => a.dueAt - b.dueAt)
       .slice(0, 4);
+    const dueAssignments = assignmentRows
+      .filter((row) => row.status === "not_started" && row.dueAt >= now && row.dueAt - now < 7 * 24 * 60 * 60 * 1000)
+      .slice(0, 3)
+      .map((row) => ({ type: "assignment", title: row.title, detail: row.module, dueAt: row.dueAt, dueLabel: row.dueLabel, assignmentSlug: row.slug }));
+    const upcoming = [...base, ...dueAssignments].sort((a, b) => a.dueAt - b.dueAt);
 
     return res.status(200).json({
       cohort: cohortSummary(cohort, req.cohortRole),
@@ -123,10 +133,9 @@ export const getDashboardController = async (req, res, next) => {
       progress: {
         overall: total ? Math.round((done / total) * 100) : 0,
         week: { weekNumber, percent: weekItems.length ? Math.round((weekDone / weekItems.length) * 100) : 0 },
-        assignments: {
-          done: assignmentItems.filter((item) => item.done).length,
-          total: assignmentItems.length,
-        },
+        assignments: assignmentRows.length
+          ? { done: assignmentRows.filter((row) => row.status !== "not_started").length, total: assignmentRows.length }
+          : { done: assignmentItems.filter((item) => item.done).length, total: assignmentItems.length },
         attendance: {
           attended,
           total: endedSessions.length,
@@ -142,6 +151,7 @@ export const getDashboardController = async (req, res, next) => {
         weekNumber: upNextItem.weekNumber,
         day: upNextItem.day,
         labSlug: upNextItem.labSlug,
+        lessonRef: upNextItem.lessonRef,
       },
       upcoming,
       nextLiveSession: nextSessions[0] || null,
@@ -234,6 +244,7 @@ export const updateProgressController = async (req, res, next) => {
     const doneSet = await getProgressSet(req.user._id, cohort._id);
     const week = weeks.find((entry) => entry.weekNumber === item.weekNumber);
     const decorated = decorateWeek(week, cohort, doneSet);
+    const certificate = completed ? await issueIfComplete(req.user._id, cohort) : null;
 
     return res.status(200).json({
       message: completed ? "Marked as complete" : "Marked as incomplete",
@@ -241,6 +252,7 @@ export const updateProgressController = async (req, res, next) => {
       completed,
       weekProgress: decorated.progress,
       day: decorated.days[item.dayIndex],
+      certificateCode: certificate?.code ?? null,
     });
   } catch (error) {
     next(error);

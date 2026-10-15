@@ -2,7 +2,15 @@ import { Router } from "express";
 import { authGuard } from "../middlewares/auth.middleware.js";
 import { roleGuard } from "../middlewares/role.middleware.js";
 import { requireTeacher, resolveCohort, resolveLiveSession } from "../middlewares/lms.middleware.js";
-import { codeSubmissionLimiter, inquiryLimiter, liveChatLimiter } from "../middlewares/rateLimiter.middleware.js";
+import {
+  assignmentSubmitLimiter,
+  codeSubmissionLimiter,
+  communityWriteLimiter,
+  inquiryLimiter,
+  lessonCommentLimiter,
+  liveChatLimiter,
+  quizAttemptLimiter,
+} from "../middlewares/rateLimiter.middleware.js";
 import {
   createAnnouncementController,
   createInquiryController,
@@ -52,6 +60,42 @@ import {
   updateInquiryController,
   upsertWeekController,
 } from "../controllers/lmsAdmin.controller.js";
+import {
+  createCommentController,
+  getLessonController,
+  getLessonFileController,
+  listCommentsController,
+  toggleCommentLikeController,
+  toggleObjectiveController,
+} from "../controllers/lmsLessons.controller.js";
+import { getMyQuizAttemptsController, getQuizController, submitQuizAttemptController } from "../controllers/lmsQuizzes.controller.js";
+import {
+  getAssignmentController,
+  gradeSubmissionController,
+  listAssignmentsController,
+  listSubmissionsController,
+  submitAssignmentController,
+} from "../controllers/lmsAssignments.controller.js";
+import {
+  createPostController,
+  createReplyController,
+  deletePostController,
+  getPostController,
+  listChannelsController,
+  listPostsController,
+  pinPostController,
+  togglePostLikeController,
+} from "../controllers/lmsCommunity.controller.js";
+import { issueCertificateController, listCertificatesController } from "../controllers/lmsCertificates.controller.js";
+import { adminOverviewController, instructorOverviewController } from "../controllers/lmsOverview.controller.js";
+import {
+  createAssignmentController,
+  createLessonController,
+  createQuizController,
+  updateAssignmentController,
+  updateLessonController,
+  updateQuizController,
+} from "../controllers/lmsLearningAdmin.controller.js";
 
 const router = Router();
 
@@ -74,6 +118,14 @@ admin.post("/code-labs", createCodeLabController);
 admin.put("/code-labs/:slug", updateCodeLabController);
 admin.get("/inquiries", listAllInquiriesController);
 admin.put("/inquiries/:id", updateInquiryController);
+admin.post("/lessons", createLessonController);
+admin.put("/lessons/:slug", updateLessonController);
+admin.post("/quizzes", createQuizController);
+admin.put("/quizzes/:slug", updateQuizController);
+admin.post("/assignments", createAssignmentController);
+admin.put("/assignments/:slug", updateAssignmentController);
+admin.post("/certificates", issueCertificateController);
+admin.get("/overview", adminOverviewController);
 router.use("/admin", admin);
 
 /* ---- My cohorts, dashboard, weekly path, progress, announcements ---- */
@@ -114,5 +166,37 @@ router.get("/code-labs", listCodeLabsController);
 router.get("/code-labs/:slug", getCodeLabController);
 router.post("/code-labs/:slug/submissions", codeSubmissionLimiter, submitCodeLabController);
 router.get("/code-labs/:slug/submissions/me", getMySubmissionsController);
+
+/* ---- Lessons, quizzes, assignments ---- */
+router.get("/lessons/:slug", resolveCohort, getLessonController);
+router.get("/lessons/:slug/file", resolveCohort, getLessonFileController);
+router.post("/lessons/:slug/objectives", resolveCohort, toggleObjectiveController);
+router.get("/lessons/:slug/comments", resolveCohort, listCommentsController);
+router.post("/lessons/:slug/comments", resolveCohort, lessonCommentLimiter, createCommentController);
+router.post("/lessons/:slug/comments/:id/like", resolveCohort, toggleCommentLikeController);
+
+router.get("/quizzes/:slug", resolveCohort, getQuizController);
+router.post("/quizzes/:slug/attempts", resolveCohort, quizAttemptLimiter, submitQuizAttemptController);
+router.get("/quizzes/:slug/attempts/me", resolveCohort, getMyQuizAttemptsController);
+
+router.get("/assignments", resolveCohort, listAssignmentsController);
+router.get("/assignments/:slug", resolveCohort, getAssignmentController);
+router.post("/assignments/:slug/submit", resolveCohort, assignmentSubmitLimiter, submitAssignmentController);
+router.get("/assignments/:slug/submissions", resolveCohort, requireTeacher, listSubmissionsController);
+router.put("/assignments/:slug/submissions/:id/grade", resolveCohort, requireTeacher, gradeSubmissionController);
+
+/* ---- Community ---- */
+router.get("/community/channels", resolveCohort, listChannelsController);
+router.get("/community/posts", resolveCohort, listPostsController);
+router.post("/community/posts", resolveCohort, communityWriteLimiter, createPostController);
+router.get("/community/posts/:id", resolveCohort, getPostController);
+router.post("/community/posts/:id/replies", resolveCohort, communityWriteLimiter, createReplyController);
+router.post("/community/posts/:id/like", resolveCohort, togglePostLikeController);
+router.put("/community/posts/:id/pin", resolveCohort, requireTeacher, pinPostController);
+router.delete("/community/posts/:id", resolveCohort, deletePostController);
+
+/* ---- Certificates & dashboards ---- */
+router.get("/certificates", listCertificatesController);
+router.get("/instructor/overview", resolveCohort, requireTeacher, instructorOverviewController);
 
 export default router;
