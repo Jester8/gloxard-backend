@@ -34,7 +34,7 @@ Most endpoints act on one cohort. Send `?cohortId=<id>` (or `cohortId` in the bo
 |---|---|---|
 | GET | `/live-sessions` | cohort sessions (`status` filter); each has `canJoin` |
 | GET | `/live-sessions/:id` | session + `polls[]` (counts and your `myVote`), `sharedCode`, `myHandRaised` |
-| POST | `/live-sessions/:id/join` | records attendance. Returns `{ provider: "livekit", configured, serverUrl, roomToken, roomName, role, status }`. `configured: false` means LiveKit isn't set up, so show the preview room. Students can join 15 minutes before the start time; `409` otherwise |
+| POST | `/live-sessions/:id/join` | records attendance. Returns `{ provider: "youtube", configured, videoId, embedUrl, watchUrl, role, status }`. `configured: false` means no YouTube link has been added yet, so show a "stream starting soon" state. Students can join 15 minutes before the start time; `409` otherwise |
 | POST | `/live-sessions/:id/start` \| `/end` | instructor/admin |
 | GET | `/live-sessions/:id/chat` | `?limit=50&before=<messageId>`, oldest first, `hasMore` |
 | POST | `/live-sessions/:id/chat` | `{ text }`, only while live. Limit: 40 per minute |
@@ -49,25 +49,6 @@ Most endpoints act on one cohort. Send `?cohortId=<id>` (or `cohortId` in the bo
 
 Connect to `<backend>/live` with `auth: { token }`. Emit `join_session` with `{ sessionId }` (acknowledgement `{ ok, error? }`; members only). Events to listen for: `chat:new`, `poll:new`, `poll:update` (counts only, `myVote` is always `null` in broadcasts), `hand:update { userId, name, raised, count }`, `code:update { language, content, updatedAt }`, `session:status { sessionId, status, startedAt, endedAt }`.
 
-### LiveKit
+### YouTube live streaming
 
-Set `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. Students get publish rights; instructors/admins are room admins. Token lifetime 2 hours.
-
-## Coding labs
-
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/code-labs` | `[{ slug, title, module, estimate, submitted, best }]` |
-| GET | `/code-labs/:slug` | steps, hints, files (including the read-only tests file) |
-| POST | `/code-labs/:slug/submissions` | `{ files: [{ name, content }], passed, total }`. Only editable lab files, max 10 files of 100 KB. Results come from the browser runner and are stored with `verification: "unverified"` |
-| GET | `/code-labs/:slug/submissions/me` | your last 10, newest first (use the newest to restore work on another device) |
-
-Request bodies on code routes may be up to 1 MB; everything else is limited to 16 KB.
-
-## Admin (`role: admin`)
-
-`GET/POST /admin/trimesters`, `PUT /admin/trimesters/:id/weeks/:weekNumber` (creates or replaces a week; item ids are kept for items with the same day/kind/label so progress survives edits), `GET/POST /admin/cohorts`, `POST /admin/cohorts/:id/students` (`userIds` and/or `emails`), `DELETE /admin/cohorts/:id/students/:userId`, `POST /admin/live-sessions`, `POST /admin/live-sessions/:id/cancel`, `POST /admin/code-labs`, `PUT /admin/code-labs/:slug`, `GET /admin/inquiries`, `PUT /admin/inquiries/:id` (`status`, `reply`).
-
-## Not included yet
-
-Community forum, assignments and grading, a server-side code runner (submissions are unverified), trimester payment and enrolment, and the OpenAPI file.
+Classes stream on YouTube (create the broadcast in YouTube Studio; "Unlisted" works well). The instructor or an admin pastes the link with `PUT /live-sessions/:id/stream { youtubeUrl }` (watch, live, youtu.be or embed links all work; an empty value clears it), or passes `youtubeUrl` when scheduling via `POST /admin/live-sessions`. Members get the video from `POST /live-sessions/:id/join`, and a `session:stream` event is pushed on the `/live` socket when the link changes. Chat, polls, raised hands and shared code stay on this API.

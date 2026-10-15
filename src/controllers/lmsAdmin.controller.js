@@ -1,3 +1,4 @@
+import { parseYouTubeId } from "../utils/youtube.js";
 import mongoose from "mongoose";
 import { CodeLab, Cohort, Inquiry, LiveSession, LmsWeek, Trimester } from "../models/Lms.model.js";
 import { User } from "../models/User.model.js";
@@ -147,10 +148,10 @@ export const removeCohortStudentController = async (req, res, next) => {
 
 /* ---------- Live sessions ---------- */
 
-/** POST /api/lms/admin/live-sessions  { cohortId, title, instructorId?, startsAt, endsAt } */
+/** POST /api/lms/admin/live-sessions  { cohortId, title, instructorId?, startsAt, endsAt, youtubeUrl? } */
 export const createLiveSessionController = async (req, res, next) => {
   try {
-    const { cohortId, title, instructorId, startsAt, endsAt } = req.body || {};
+    const { cohortId, title, instructorId, startsAt, endsAt, youtubeUrl } = req.body || {};
     if (!isId(cohortId)) return bad(res, "cohortId", "Choose an existing cohort");
     const cohort = await Cohort.findById(cohortId);
     if (!cohort) return res.status(404).json({ error: "Cohort not found" });
@@ -163,7 +164,13 @@ export const createLiveSessionController = async (req, res, next) => {
     const instructor = instructorId || cohort.instructor;
     if (!instructor || !isId(instructor)) return bad(res, "instructorId", "An instructor is required");
 
-    const session = await LiveSession.create({ cohort: cohort._id, title, instructor, startsAt: start, endsAt: end });
+    let youtubeVideoId = "";
+    if (youtubeUrl) {
+      youtubeVideoId = parseYouTubeId(youtubeUrl);
+      if (!youtubeVideoId) return bad(res, "youtubeUrl", "Paste a YouTube watch, live or youtu.be link");
+    }
+
+    const session = await LiveSession.create({ cohort: cohort._id, title, instructor, startsAt: start, endsAt: end, youtubeVideoId });
     return res.status(201).json({ message: "Live session scheduled", session });
   } catch (error) {
     next(error);

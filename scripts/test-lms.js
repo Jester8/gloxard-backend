@@ -145,21 +145,29 @@ const main = async () => {
   ok(r.status === 200 && r.data.session.polls.length === 1 && r.data.session.polls[0].myVote === null && r.data.session.sharedCode.content.includes("function bfs"), "session detail has poll and shared code");
   ok((await call("GET", `/api/lms/live-sessions/${live._id}`, john.token)).status === 403, "non-member can't open a session");
   r = await call("POST", `/api/lms/live-sessions/${live._id}/join`, alice.token);
-  ok(r.status === 200 && r.data.provider === "livekit" && r.data.configured === false && r.data.roomToken === null, "join returns LiveKit details (unconfigured here)", JSON.stringify(r.data));
+  ok(r.status === 200 && r.data.provider === "youtube" && r.data.configured === false && r.data.videoId === null, "join before a YouTube link is set: configured false", JSON.stringify(r.data));
+  r = await call("PUT", `/api/lms/live-sessions/${live._id}/stream`, alice.token, { youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" });
+  ok(r.status === 403, "a student can't set the stream link");
+  r = await call("PUT", `/api/lms/live-sessions/${live._id}/stream`, jane.token, { youtubeUrl: "https://example.com/video" });
+  ok(r.status === 400 && r.data.fields?.youtubeUrl, "rejects a non-YouTube link");
+  r = await call("PUT", `/api/lms/live-sessions/${live._id}/stream`, jane.token, { youtubeUrl: "https://youtu.be/dQw4w9WgXcQ?t=5" });
+  ok(r.status === 200 && r.data.stream.videoId === "dQw4w9WgXcQ", "instructor saves a YouTube link (youtu.be form)", JSON.stringify(r.data));
+  r = await call("POST", `/api/lms/live-sessions/${live._id}/join`, alice.token);
+  ok(r.status === 200 && r.data.provider === "youtube" && r.data.configured === true && r.data.videoId === "dQw4w9WgXcQ" && r.data.embedUrl.includes("/embed/dQw4w9WgXcQ"), "join returns the YouTube embed details", JSON.stringify(r.data));
   ok((await call("POST", `/api/lms/live-sessions/${scheduled._id}/join`, alice.token)).status === 409, "can't join a class that is far from starting");
   ok((await call("POST", `/api/lms/live-sessions/${ended._id}/join`, alice.token)).status === 409, "can't join an ended class");
   r = await call("GET", `/api/lms/live-sessions/${live._id}/people`, alice.token);
   ok(r.status === 200 && r.data.total === 3 && r.data.people.find((p) => p.isYou)?.joined === true, "people list shows who joined");
 
-  // LiveKit token content, with credentials set for this process only
-  process.env.LIVEKIT_URL = "wss://example.livekit.cloud";
-  process.env.LIVEKIT_API_KEY = "devkey";
-  process.env.LIVEKIT_API_SECRET = "devsecret-devsecret-devsecret-123456";
-  const { createRoomToken } = await import("../src/utils/livekit.js");
-  const issued = await createRoomToken({ roomName: "lms-test", identity: "user1", name: "Test User", isHost: true });
-  const claims = JSON.parse(Buffer.from(issued.roomToken.split(".")[1], "base64url").toString());
-  ok(issued.configured && issued.serverUrl === "wss://example.livekit.cloud" && claims.video.room === "lms-test" && claims.video.roomJoin && claims.video.roomAdmin && claims.sub === "user1", "LiveKit token has the right room, identity and grants");
-  delete process.env.LIVEKIT_URL; delete process.env.LIVEKIT_API_KEY; delete process.env.LIVEKIT_API_SECRET;
+  const { parseYouTubeId } = await import("../src/utils/youtube.js");
+  ok(
+    parseYouTubeId("https://www.youtube.com/live/abcDEF12345?feature=share") === "abcDEF12345" &&
+      parseYouTubeId("youtube.com/embed/abcDEF12345") === "abcDEF12345" &&
+      parseYouTubeId("abcDEF12345") === "abcDEF12345" &&
+      parseYouTubeId("https://youtube.com.evil.io/watch?v=abcDEF12345") === null &&
+      parseYouTubeId("not a link") === null,
+    "YouTube link parsing accepts real forms and rejects look-alikes"
+  );
 
   console.log("\n-- live chat, polls, hand, shared code (with realtime events)");
   const aliceSocket = await connectLive(alice.token);

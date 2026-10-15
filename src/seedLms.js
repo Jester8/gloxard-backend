@@ -176,7 +176,7 @@ export async function seedLms({ admin, jane, alice, bob }) {
     {
       cohort: cohort._id, title: "Data Structures: Advanced Trees & Graphs", instructor: jane._id,
       startsAt: new Date(now.getTime() - 20 * 60 * 1000), endsAt: new Date(now.getTime() + 70 * 60 * 1000),
-      status: "live", startedAt: new Date(now.getTime() - 20 * 60 * 1000), roomName: "lms-demo-live",
+      status: "live", startedAt: new Date(now.getTime() - 20 * 60 * 1000),
       sharedCode: { language: "javascript", updatedAt: now, content: `function bfs(graph, start) {\n  const visited = new Set([start]);\n  const queue = [start];\n  const order = [];\n\n  while (queue.length > 0) {\n    const node = queue.shift();\n    order.push(node);\n\n    for (const next of graph[node] ?? []) {\n      if (!visited.has(next)) {\n        visited.add(next);\n        queue.push(next);\n      }\n    }\n  }\n  return order; // O(V + E)\n}` },
     },
     {

@@ -156,7 +156,7 @@ const liveSessionSchema = new Schema(
     startsAt: { type: Date, required: true, index: true },
     endsAt: { type: Date, required: true },
     status: { type: String, enum: ["scheduled", "live", "ended", "cancelled"], default: "scheduled", index: true },
-    roomName: { type: String, unique: true, sparse: true },
+    youtubeVideoId: { type: String, default: "", trim: true },
     sharedCode: {
       language: { type: String, default: "javascript" },
       content: { type: String, default: "", maxlength: 100000 },

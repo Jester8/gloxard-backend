@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { Cohort, LiveAttendance, LiveMessage, LiveSession } from "../models/Lms.model.js";
 import { User } from "../models/User.model.js";
-import { createRoomToken } from "../utils/livekit.js";
+import { parseYouTubeId, streamDetails } from "../utils/youtube.js";
 import { emitLive } from "../socket/socket.handler.js";
 
 const JOIN_EARLY_MS = 15 * 60 * 1000;
@@ -51,6 +51,7 @@ const sessionView = (session, req, { detail = false } = {}) => {
     endedAt: session.endedAt,
     canJoin: canJoin(session, req),
     handsRaised: session.handsRaised.length,
+    hasStream: Boolean(session.youtubeVideoId),
   };
   if (detail) {
     view.sharedCode = session.sharedCode?.content ? session.sharedCode : null;
@@ -92,8 +93,8 @@ export const getLiveSessionController = async (req, res, next) => {
 
 /**
  * POST /api/lms/live-sessions/:id/join
- * Records attendance and returns the LiveKit connection details ({ provider, serverUrl, roomToken }).
- * `configured: false` means LiveKit isn't set up on this server, so the frontend shows its preview room.
+ * Records attendance and returns the YouTube stream details ({ provider: "youtube", configured, videoId, embedUrl, watchUrl }).
+ * `configured: false` means the instructor hasn't added the YouTube link yet, so the frontend shows a "stream starting soon" state.
  */
 export const joinLiveSessionController = async (req, res, next) => {
   try {
@@ -106,24 +107,28 @@ export const joinLiveSessionController = async (req, res, next) => {
       return res.status(409).json({ error: message });
     }
 
-    const roomName = session.roomName || `lms-${session._id}`;
-    if (!session.roomName) {
-      session.roomName = roomName;
-      await session.save();
-    }
-
     if (!isTeacher(req)) {
       await LiveAttendance.updateOne({ session: session._id, user: req.user._id }, { $setOnInsert: { joinedAt: new Date() } }, { upsert: true });
     }
 
-    const connection = await createRoomToken({
-      roomName,
-      identity: String(req.user._id),
-      name: fullName(req.user),
-      isHost: isTeacher(req),
-    });
+    return res.status(200).json({ ...streamDetails(session.youtubeVideoId), role: req.cohortRole, status: session.status });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    return res.status(200).json({ ...connection, role: req.cohortRole, status: session.status });
+/** PUT /api/lms/live-sessions/:id/stream  { youtubeUrl } (instructor/admin; an empty value clears it) */
+export const setStreamController = async (req, res, next) => {
+  try {
+    const session = req.session_;
+    if (session.status === "ended" || session.status === "cancelled") return res.status(409).json({ error: `A ${session.status} class can't be changed` });
+    const raw = typeof req.body?.youtubeUrl === "string" ? req.body.youtubeUrl.trim() : "";
+    const videoId = raw ? parseYouTubeId(raw) : "";
+    if (raw && !videoId) return res.status(400).json({ error: "That isn't a valid YouTube link", fields: { youtubeUrl: "Paste a YouTube watch, live or youtu.be link" } });
+    session.youtubeVideoId = videoId;
+    await session.save();
+    emitLive(session._id, "session:stream", { sessionId: session._id, ...streamDetails(videoId) });
+    return res.status(200).json({ message: videoId ? "Stream link saved" : "Stream link removed", stream: streamDetails(videoId) });
   } catch (error) {
     next(error);
   }
@@ -154,7 +159,7 @@ export const startLiveSessionController = (req, res, next) =>
     from: ["scheduled"],
     to: "live",
     message: "The class has started",
-    patch: (session) => ({ startedAt: new Date(), roomName: session.roomName || `lms-${session._id}` }),
+    patch: () => ({ startedAt: new Date() }),
   });
 
 /** POST /api/lms/live-sessions/:id/end (instructor/admin) */

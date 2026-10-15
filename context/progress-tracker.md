@@ -33,7 +33,7 @@ Spec and endpoint reference: [`17-trimester-lms-api.md`](specs/17-trimester-lms-
 - [x] **Models** (`Lms.model.js`): Trimester, Cohort, LmsWeek, LmsProgress, LmsAnnouncement, Inquiry, LiveSession (polls, hands, shared code), LiveMessage, LiveAttendance, CodeLab, CodeSubmission.
 - [x] **Student screens**: my cohorts, dashboard, curriculum + weekly path (day status computed from the cohort start date), progress, announcements.
 - [x] **Help Center**: inquiries with owner-checked private attachments (`documents/` folder), admin replies and status.
-- [x] **Live classes**: sessions, join (attendance + LiveKit room token), start/end, chat, polls, raise hand, people, shared code; realtime events on the `/live` Socket.io namespace.
+- [x] **Live classes**: sessions, join (attendance + YouTube stream details), start/end, chat, polls, raise hand, people, shared code; realtime events on the `/live` Socket.io namespace.
 - [x] **Coding labs**: lab files and tests, submissions (stored as `unverified`; there is no server-side code sandbox yet).
 - [x] **Admin setup**: trimesters, weekly plans (item ids survive edits), cohorts and members, live sessions, labs.
 - [x] Verified by `npm run test:lms` (113 checks) against seeded demo data.

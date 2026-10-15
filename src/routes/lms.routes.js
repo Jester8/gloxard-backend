@@ -25,6 +25,7 @@ import {
   joinLiveSessionController,
   listLiveSessionsController,
   sendChatController,
+  setStreamController,
   startLiveSessionController,
   toggleHandController,
   updateSharedCodeController,
@@ -95,6 +96,7 @@ const live = Router({ mergeParams: true });
 live.use(resolveLiveSession);
 live.get("/", getLiveSessionController);
 live.post("/join", joinLiveSessionController);
+live.put("/stream", requireTeacher, setStreamController);
 live.post("/start", requireTeacher, startLiveSessionController);
 live.post("/end", requireTeacher, endLiveSessionController);
 live.get("/chat", getChatController);
