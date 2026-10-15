@@ -23,10 +23,20 @@ async function seedDatabase() {
   console.log('\x1b[36m [SEEDING DATABASE] Gloxad Academy Seed Engine \x1b[0m');
   console.log('\x1b[36m==================================================\x1b[0m');
 
-  // Safety check against production databases
-  if (process.env.NODE_ENV === 'production') {
-    console.error('\x1b[31m[ERROR] Database seeding is not permitted in production environment!\x1b[0m');
+  // Safety check against production databases. This script WIPES users, courses, transactions, enrolments, messages and every LMS collection.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DESTRUCTIVE_SEED !== 'true') {
+    console.error('\x1b[41m\x1b[97m                                                                \x1b[0m');
+    console.error('\x1b[41m\x1b[97m  REFUSING TO RUN: NODE_ENV=production                          \x1b[0m');
+    console.error('\x1b[41m\x1b[97m  src/seed.js DELETES Users, Courses, Transactions and more.    \x1b[0m');
+    console.error('\x1b[41m\x1b[97m  It must never be run against a production database.          \x1b[0m');
+    console.error('\x1b[41m\x1b[97m                                                                \x1b[0m');
+    console.error('\x1b[31mTo load LMS content safely use:  npm run seed:lms\x1b[0m');
+    console.error('\x1b[31mTo override on a throwaway database only: ALLOW_DESTRUCTIVE_SEED=true\x1b[0m');
     process.exit(1);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.error('\x1b[41m\x1b[97m WARNING: ALLOW_DESTRUCTIVE_SEED=true in production. Wiping data in 5 seconds (Ctrl+C to abort). \x1b[0m');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
   try {
