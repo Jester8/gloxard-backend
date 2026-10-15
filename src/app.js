@@ -53,8 +53,15 @@ const keepRawBody = (req, res, buf) => {
 };
 const smallJson = express.json({ limit: "16kb", verify: keepRawBody });
 const codeJson = express.json({ limit: "1mb", verify: keepRawBody });
+// Assignment write-ups (up to 20,000 characters) and authored lessons/quizzes need more than 16kb, but far less than code labs.
+const contentJson = express.json({ limit: "256kb", verify: keepRawBody });
+const CONTENT_PATHS = [/^\/api\/lms\/assignments\/[^/]+\/submit$/, /^\/api\/lms\/admin\/(lessons|quizzes|assignments)(\/|$)/];
 const CODE_PATHS = [/^\/api\/lms\/code-labs(\/|$)/, /^\/api\/lms\/live-sessions\/[^/]+\/shared-code$/, /^\/api\/lms\/admin\/code-labs(\/|$)/];
-app.use((req, res, next) => (CODE_PATHS.some((pattern) => pattern.test(req.path)) ? codeJson : smallJson)(req, res, next));
+app.use((req, res, next) => {
+  if (CODE_PATHS.some((pattern) => pattern.test(req.path))) return codeJson(req, res, next);
+  if (CONTENT_PATHS.some((pattern) => pattern.test(req.path))) return contentJson(req, res, next);
+  return smallJson(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 
 // Interactive HTML API Documentation Portal

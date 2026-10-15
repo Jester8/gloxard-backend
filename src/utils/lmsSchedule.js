@@ -90,6 +90,7 @@ export const flattenItems = (weeks, cohort, doneSet) => {
           kind: item.kind,
           label: item.label,
           labSlug: item.labSlug || null,
+          lessonRef: item.lessonRef || null,
           weekNumber: week.weekNumber,
           dayIndex: day.dayIndex,
           day: DAY_NAMES[day.dayIndex],

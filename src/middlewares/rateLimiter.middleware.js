@@ -38,6 +38,10 @@ const createUserLimiter = (maxRequests, windowMinutes, message) =>
 export const liveChatLimiter = createUserLimiter(40, 1, "You're sending messages too quickly. Please slow down.");
 export const inquiryLimiter = createUserLimiter(10, 60, "You've submitted several inquiries recently. Please wait a while before sending another.");
 export const codeSubmissionLimiter = createUserLimiter(30, 15, "Too many submissions. Please wait a few minutes.");
+export const lessonCommentLimiter = createUserLimiter(40, 1, "You're commenting too quickly. Please slow down.");
+export const quizAttemptLimiter = createUserLimiter(20, 15, "Too many quiz submissions. Please wait a few minutes.");
+export const assignmentSubmitLimiter = createUserLimiter(20, 15, "Too many submissions. Please wait a few minutes.");
+export const communityWriteLimiter = createUserLimiter(30, 15, "You're posting too quickly. Please wait a few minutes.");
 
 // Backward compatibility exports
 export const authLimiter = signinLimiter;
